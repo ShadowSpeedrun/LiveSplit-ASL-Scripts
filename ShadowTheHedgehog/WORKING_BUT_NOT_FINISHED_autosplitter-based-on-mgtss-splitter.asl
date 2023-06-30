@@ -16,8 +16,8 @@ startup {
       settings.SetToolTip("debug_stdout", "This can be viewed in a tool such as DebugView.");
   
   settings.Add("behaviour", true, " Autosplitter Behaviour");
-    settings.Add("o_startonselect", true, " Start as soon as Game Start is selected", "behaviour");
-      settings.SetToolTip("o_startonselect", "Experimental, for Real Time timing purposes. If you have problems with this, disable it.");
+    settings.Add("o_startonnew", true, " Start as soon as New is selected in Story Mode", "behaviour");
+      settings.SetToolTip("o_startonnew", "Experimental");
     settings.Add("o_norepeat", true, " Suppress repeats of the same split", "behaviour");
     settings.Add("o_halfframerate", false, " Run splitter logic at 30 fps", "behaviour");
     settings.SetToolTip("o_halfframerate", "Can improve performance on weaker systems, at the cost of some precision.");
@@ -64,6 +64,8 @@ startup {
     { "GUPX8P", new Dictionary<string, int>() { // USA
       { "GameTime", 0x57D734 },
       { "StageAction", 0x575F78 },
+	  { "GameMode", 0x5EC170 },
+	  { "StageCompleted", 0x575F95 },
     } }
   };
     
@@ -219,17 +221,16 @@ update {
     return false;
   }
   
-  current.GameTime = D.Read.Uint( D.VarAddr("GameTime") );
-  current.StageAction = D.Read.Uint( D.VarAddr("StageAction") );
+  current.GameTime = D.Read.Uint(D.VarAddr("GameTime"));
+  current.StageAction = D.Read.Uint(D.VarAddr("StageAction"));
+  current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
+  current.StageCompleted = D.Read.Byte(D.VarAddr("GameMode"));
   
-  var ptr = D.Read.Uint( D.VarAddr("StageAction") );
-  var ptr2 = D.Read.Uint((int)ptr);
-  var ptr3 = D.Read.Uint((int)ptr2);
-  
-  // NOTE The StageAction address is currently set to the STRING state, but I cannot get the pointer to deref to the string.
-  // GameTime is working as expected though
-  
-  D.Debug("Found Shadow (" + ptr3 + ") memory at " + D.BaseAddr.ToString("X"));
+//  D.Debug("Found Shadow memory at " + D.BaseAddr.ToString("X"));
+  D.Debug("StageCompleted: (" + current.StageCompleted + ")");
+  D.Debug("GameMode: (" + current.GameMode + ")");
+
+
   
   return true;
 }
@@ -242,66 +243,70 @@ isLoading {
 split {
   var D = vars.D;
   if (!D.GameActive) return false;
-  
-  if (current.Progress != old.Progress) {
-    
-    D.SetWatchCodes();
-    
-    string progressCode = "p" + current.Progress;
-    char setting = !settings.ContainsKey(progressCode) ? '?' : (settings[progressCode] ? 'T' : 'F');
-    D.Debug("Progress " + progressCode + " [" + setting + "]");
-    if (D.SettingEnabled(progressCode))
-      return D.Split(progressCode);
-    
+  if (current.StageCompleted == 1 && old.StageCompleted != 1) {
+	// old.StageCompleted = 1;
+	return true;
   }
   
-  if (current.Location != old.Location) {
-    
-    D.SetWatchCodes();
-    
-    var departureAreas = new List<string>() { old.Location };
-    if (D.LocationSets.ContainsKey(old.Location)) departureAreas.Add( D.LocationSets[old.Location] );
-    
-    var destinationAreas = new List<string>() { current.Location };
-    if (D.LocationSets.ContainsKey(current.Location)) destinationAreas.Add( D.LocationSets[current.Location] );
-    
-    var progressCodes = new List<string>() { "p" + current.Progress };
-    if (D.ProgressSets.ContainsKey(current.Progress)) progressCodes.Add( D.ProgressSets[current.Progress] );
-    
-    var validCodes = new List<string>();
-    foreach (var dep in departureAreas) {
-      foreach (var dest in destinationAreas) {
-        string movement = dep + "_" + dest;
-        validCodes.Add(movement);
-        foreach (var prog in progressCodes)
-          validCodes.Add(movement + "_" + prog);
-      }
-    }
-    D.Debug("Location (" + string.Join(" ", validCodes) + ")");
-    
-    foreach (var code in validCodes) {
-      if (D.SettingEnabled(code)) {
-        if ( (!D.SplitCheck.ContainsKey(code)) || (D.SplitCheck[code]()) ) {
-          if (D.Split(code)) return true;
-        }
-      }
-    }
-    D.Debug("No match, not splitting");
-    
-  }
-  
-  if (D.ActiveWatchCodes != null) {
-    
-    foreach (var code in D.ActiveWatchCodes) {
-      int result = D.SplitWatch[code]();
-      if (result == 0) continue;
-      D.ActiveWatchCodes.Remove(code);
-      if (result == 1) return D.Split(code);
-      if (result == -1) return false;
-    }
-    
-  }
-  
+//  if (current.Progress != old.Progress) {
+//    
+//    D.SetWatchCodes();
+//    
+//    string progressCode = "p" + current.Progress;
+//    char setting = !settings.ContainsKey(progressCode) ? '?' : (settings[progressCode] ? 'T' : 'F');
+//    D.Debug("Progress " + progressCode + " [" + setting + "]");
+//    if (D.SettingEnabled(progressCode))
+//      return D.Split(progressCode);
+//    
+//  }
+//  
+//  if (current.Location != old.Location) {
+//    
+//    D.SetWatchCodes();
+//    
+//    var departureAreas = new List<string>() { old.Location };
+//    if (D.LocationSets.ContainsKey(old.Location)) departureAreas.Add( D.LocationSets[old.Location] );
+//    
+//    var destinationAreas = new List<string>() { current.Location };
+//    if (D.LocationSets.ContainsKey(current.Location)) destinationAreas.Add( D.LocationSets[current.Location] );
+//    
+//    var progressCodes = new List<string>() { "p" + current.Progress };
+//    if (D.ProgressSets.ContainsKey(current.Progress)) progressCodes.Add( D.ProgressSets[current.Progress] );
+//    
+//    var validCodes = new List<string>();
+//    foreach (var dep in departureAreas) {
+//      foreach (var dest in destinationAreas) {
+//        string movement = dep + "_" + dest;
+//        validCodes.Add(movement);
+//        foreach (var prog in progressCodes)
+//          validCodes.Add(movement + "_" + prog);
+//      }
+//    }
+//    D.Debug("Location (" + string.Join(" ", validCodes) + ")");
+//    
+//    foreach (var code in validCodes) {
+//      if (D.SettingEnabled(code)) {
+//        if ( (!D.SplitCheck.ContainsKey(code)) || (D.SplitCheck[code]()) ) {
+//          if (D.Split(code)) return true;
+//        }
+//      }
+//    }
+//    D.Debug("No match, not splitting");
+//    
+//  }
+//  
+//  if (D.ActiveWatchCodes != null) {
+//    
+//    foreach (var code in D.ActiveWatchCodes) {
+//      int result = D.SplitWatch[code]();
+//      if (result == 0) continue;
+//      D.ActiveWatchCodes.Remove(code);
+//      if (result == 1) return D.Split(code);
+//      if (result == -1) return false;
+//    }
+//    
+//  }
+//  
   return false; 
 }
 
@@ -309,20 +314,22 @@ start {
   var D = vars.D;
   if (!D.GameActive) return false;
   
-  if ( (settings["o_startonselect"]) && (current.StageAction == -1) ) {
-    var ptr = D.Read.Uint( D.VarAddr("StageAction") );
-    if (ptr != 0) {
-      ptr &= 0x0fffffff;
-      if (
-        ( (D.Read.Byte((int)ptr + 0xe3) == 1) && (D.Read.Byte((int)ptr + 0x4f) == 7) ) // NG
-        || ( (D.Read.Byte((int)ptr + 0xe1) == 1) && (D.Read.Byte((int)ptr + 0x4d) == 7) ) // Load
-      )
-        return D.ResetVars();
-    }
+  if ( (settings["o_startonnew"]) && (current.GameMode == 1 && old.GameMode != 1) ) {
+		return true;
+  
+//    var ptr = D.Read.Uint( D.VarAddr("StageAction") );
+//    if (ptr != 0) {
+//      ptr &= 0x0fffffff;
+//      if (
+//        ( (D.Read.Byte((int)ptr + 0xe3) == 1) && (D.Read.Byte((int)ptr + 0x4f) == 7) ) // NG
+//        || ( (D.Read.Byte((int)ptr + 0xe1) == 1) && (D.Read.Byte((int)ptr + 0x4d) == 7) ) // Load
+//      )
+//        return D.ResetVars();
+//    }
   }
   
-  if ( (current.StageAction == 3) && (old.StageAction == -1) )
-    return D.ResetVars();
+//  if ( (current.StageAction == 3) && (old.StageAction == -1) )
+//    return D.ResetVars();
     
   return false;
 }
