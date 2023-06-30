@@ -190,10 +190,9 @@ init {
 
 }
 
+// TODO: Why is this not working?
 gameTime {
-  float msecs = ( (vars.D.GameActive) && (current.GameTime >= 3) ) ?
-    ((float)current.GameTime / 60 * 1000) : 0;
-  return TimeSpan.FromMilliseconds(msecs);
+  return TimeSpan.FromSeconds((float)current.GameTime);
 }
 
 update {
@@ -204,7 +203,7 @@ update {
   refreshRate = settings["o_halfframerate"] ? 30 : 60; 
   
   if ((D.i % 64) == 0) {
-    if (true) {
+    if (false) {
       string DebugPath = System.IO.Path.GetDirectoryName(Application.ExecutablePath) + "\\shadowsx.log";
       using(System.IO.StreamWriter stream = new System.IO.StreamWriter(DebugPath, true)) {
         stream.WriteLine(string.Join("\n", vars.D.DebugFileList));
@@ -227,9 +226,11 @@ update {
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
   
 //  D.Debug("Found Shadow memory at " + D.BaseAddr.ToString("X"));
-  D.Debug("StageCompleted: (" + current.StageCompleted + ")");
+//  D.Debug("StageCompleted: (" + current.StageCompleted + ")");
 //  D.Debug("GameMode: (" + current.GameMode + ")");
 //  D.Debug("GameActive: (" + D.GameActive + ")");
+	D.Debug("GameTime: (" + current.GameTime + ")");
+
 
   
   return true;
