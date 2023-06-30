@@ -191,7 +191,7 @@ init {
 }
 
 gameTime {
-  float msecs = ( (vars.D.GameActive) && (current.Progress >= 3) ) ?
+  float msecs = ( (vars.D.GameActive) && (current.GameTime >= 3) ) ?
     ((float)current.GameTime / 60 * 1000) : 0;
   return TimeSpan.FromMilliseconds(msecs);
 }
@@ -224,12 +224,12 @@ update {
   current.GameTime = D.Read.Uint(D.VarAddr("GameTime"));
   current.StageAction = D.Read.Uint(D.VarAddr("StageAction"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
-  current.StageCompleted = D.Read.Byte(D.VarAddr("GameMode"));
+  current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
   
 //  D.Debug("Found Shadow memory at " + D.BaseAddr.ToString("X"));
   D.Debug("StageCompleted: (" + current.StageCompleted + ")");
-  D.Debug("GameMode: (" + current.GameMode + ")");
-
+//  D.Debug("GameMode: (" + current.GameMode + ")");
+//  D.Debug("GameActive: (" + D.GameActive + ")");
 
   
   return true;
@@ -243,7 +243,7 @@ isLoading {
 split {
   var D = vars.D;
   if (!D.GameActive) return false;
-  if (current.StageCompleted == 1 && old.StageCompleted != 1) {
+  if (current.StageCompleted == 1 && old.StageCompleted == 0) {
 	// old.StageCompleted = 1;
 	return true;
   }
@@ -337,7 +337,7 @@ start {
 reset {
   var D = vars.D;
   if (!D.GameActive) return false;
-  if ( ((current.Progress == -1) || (current.Progress == 0)) && (old.Progress != -1) )
-    return D.ResetVars();
+//  if ( ((current.Progress == -1) || (current.Progress == 0)) && (old.Progress != -1) )
+//   return D.ResetVars();
   return false;
 }
