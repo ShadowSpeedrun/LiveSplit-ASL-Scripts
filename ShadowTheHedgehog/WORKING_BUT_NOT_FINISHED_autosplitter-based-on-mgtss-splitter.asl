@@ -9,42 +9,15 @@
 state("Dolphin") {}
 
 startup {
-  settings.Add("features", true, " Debug Logging");
-    settings.Add("debug_file", true, " Save debug information to LiveSplit program directory", "features");
-      settings.SetToolTip("debug_file", "The log will be saved at mgstts.log.");
-    settings.Add("debug_stdout", false, " Log debug information to Windows debug log", "features");
+  settings.Add("features", true, "Debug Logging");
+    settings.Add("debug_stdout", false, "Log debug information to Windows debug log", "features");
       settings.SetToolTip("debug_stdout", "This can be viewed in a tool such as DebugView.");
   
-  settings.Add("behaviour", true, " Autosplitter Behaviour");
+  settings.Add("behaviour", true, "Autosplitter Behaviour");
     settings.Add("o_startonnew", true, " Start as soon as New is selected in Story Mode", "behaviour");
-      settings.SetToolTip("o_startonnew", "Experimental");
     settings.Add("o_norepeat", true, " Suppress repeats of the same split", "behaviour");
     settings.Add("o_halfframerate", false, " Run splitter logic at 30 fps", "behaviour");
     settings.SetToolTip("o_halfframerate", "Can improve performance on weaker systems, at the cost of some precision.");
-  
-  settings.Add("splits", true, " Split Points");
-  
-  settings.Add("major", true, " Major Splits", "splits");
-  settings.CurrentDefaultParent = "major";
-    settings.Add("p38", true, " Guard Encounter");
-    settings.Add("p48", true, " Revolver Ocelot");
-    settings.Add("p77", true, " M1 Tank");
-    settings.Add("p91", true, " Ninja");
-    settings.Add("p146", true, " Psycho Mantis");
-    settings.Add("p166", true, " Sniper Wolf 1");
-      settings.SetToolTip("p166", "This split occurs when you're captured afterwards");
-    settings.Add("area15a_area17a_capture", true, " End Disc 1");
-      settings.SetToolTip("area15a_area17a_capture", "This split occurs after the disc change sequence");
-    settings.Add("area17a_area17b_p210", true, " Comm Tower A Chase");
-    settings.Add("p230", true, " Hind D");
-    settings.Add("p243", true, " Sniper Wolf 2");
-    settings.Add("p261", true, " Vulcan Raven");
-    settings.Add("p298", true, " Hot PAL Key");
-    settings.Add("p311", true, " Metal Gear REX");
-    settings.Add("p335", true, " Liquid Snake");
-    settings.Add("w_ending_p359", true, " Final Time");
-      settings.SetToolTip("w_ending_p359", "This split occurs shortly after the final pre-credits cutscene.");
-   
   
   vars.D = new ExpandoObject();
   var D = vars.D;
@@ -52,18 +25,14 @@ startup {
   D.BaseAddr = IntPtr.Zero;
   D.CompletedSplits = new Dictionary<string, bool>();
   D.DebugFileList = new List<string>();
-  D.TestIter = 0;
   D.GameActive = false;
   D.GameId = null;
-  D.SplitCheck = new Dictionary<string, Func<bool>>();
-  D.SplitWatch = new Dictionary<string, Func<int>>();
   D.ActiveWatchCodes = null;
   D.i = 0;
   
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
     { "GUPX8P", new Dictionary<string, int>() { // USA
       { "GameTime", 0x57D734 },
-      { "StageAction", 0x575F78 },
 	  { "GameMode", 0x5EC170 },
 	  { "StageCompleted", 0x575F95 },
     } }
@@ -104,19 +73,15 @@ startup {
   
   D.ResetVars = (Func<bool>)(() => {
     D.CompletedSplits.Clear();
-    D.TestIter = 0;
     return true;
   });
 }
 
 init {
   var D = vars.D;
-  D.SplitCheck.Clear();
-  D.SplitWatch.Clear();
   
   D.Debug = (Action<string>)((message) => {
     message = "[" + current.GameTime + " < " + D.old.GameTime + "] " + message;
-    if (settings["debug_file"]) D.DebugFileList.Add(message);
     if (settings["debug_stdout"]) print("[TTS-AS] " + message);
   });
   
@@ -138,40 +103,7 @@ init {
   });
   
   D.SettingEnabled = (Func<string, bool>)((key) => ( (settings.ContainsKey(key)) && (settings[key]) ));
-  
-  D.SetWatchCodes = (Action)(() => {
-    var locationCodes = new List<string>() { current.Location };
-    if (D.LocationSets.ContainsKey(current.Location)) locationCodes.Add( D.LocationSets[current.Location] );
     
-    var progressCodes = new List<string>() { "p" + current.Progress };
-    if (D.ProgressSets.ContainsKey(current.Progress)) progressCodes.Add( D.ProgressSets[current.Progress] );
-    
-    var validCodes = new List<string>() {
-      "p" + current.Progress,
-      current.Location,
-    };
-    validCodes.AddRange(locationCodes);
-    validCodes.AddRange(progressCodes);
-        
-    foreach (var loc in locationCodes) {
-      foreach (var prog in progressCodes)
-        validCodes.Add(loc + "_" + prog);
-    }
-    
-    var activeCodes = new List<string>();
-    foreach (var c in validCodes) {
-      string code = "w_" + c;
-      if ( (D.SettingEnabled(code)) && (D.SplitWatch.ContainsKey(code)) )
-        activeCodes.Add(code);
-    }
-    
-    if (activeCodes.Count == 0) D.ActiveWatchCodes = null;
-    else {
-      D.Debug("Active watcher (" + string.Join(" ", activeCodes) + ")");
-      D.ActiveWatchCodes = activeCodes;
-    }
-  });
-  
   D.Read = new ExpandoObject();
   D.Read.Byte = (Func<int, byte>)((addr) => memory.ReadValue<byte>((IntPtr)D.AddrFor(addr)));
   D.Read.Uint = (Func<int, uint>)((addr) => {
@@ -203,25 +135,15 @@ update {
   refreshRate = settings["o_halfframerate"] ? 30 : 60; 
   
   if ((D.i % 64) == 0) {
-    if (false) {
-      string DebugPath = System.IO.Path.GetDirectoryName(Application.ExecutablePath) + "\\shadowsx.log";
-      using(System.IO.StreamWriter stream = new System.IO.StreamWriter(DebugPath, true)) {
-        stream.WriteLine(string.Join("\n", vars.D.DebugFileList));
-        stream.Close();
-        vars.D.DebugFileList.Clear();
-      }
-    }
     D.LookForGameMemory(game, memory);
   }
   
   if (!D.GameActive) {
     current.GameTime = 0;
-    current.StageAction = 0; 
     return false;
   }
   
   current.GameTime = D.Read.Uint(D.VarAddr("GameTime"));
-  current.StageAction = D.Read.Uint(D.VarAddr("StageAction"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
   
@@ -229,7 +151,9 @@ update {
 //  D.Debug("StageCompleted: (" + current.StageCompleted + ")");
 //  D.Debug("GameMode: (" + current.GameMode + ")");
 //  D.Debug("GameActive: (" + D.GameActive + ")");
-	D.Debug("GameTime: (" + current.GameTime + ")");
+//	D.Debug("GameTime: (" + current.GameTime + ")");
+//	D.Debug("GameTimeF: (" + (double)current.GameTime + ")");
+
 
 
   
@@ -244,70 +168,12 @@ isLoading {
 split {
   var D = vars.D;
   if (!D.GameActive) return false;
-  if (current.StageCompleted == 1 && old.StageCompleted == 0) {
-	// old.StageCompleted = 1;
+  
+  // for normal stages; need additional logic for boss stageIds and final boss split
+  if ((current.StageCompleted == 1 || current.StageCompleted == 6) && old.StageCompleted == 0) {
 	return true;
   }
   
-//  if (current.Progress != old.Progress) {
-//    
-//    D.SetWatchCodes();
-//    
-//    string progressCode = "p" + current.Progress;
-//    char setting = !settings.ContainsKey(progressCode) ? '?' : (settings[progressCode] ? 'T' : 'F');
-//    D.Debug("Progress " + progressCode + " [" + setting + "]");
-//    if (D.SettingEnabled(progressCode))
-//      return D.Split(progressCode);
-//    
-//  }
-//  
-//  if (current.Location != old.Location) {
-//    
-//    D.SetWatchCodes();
-//    
-//    var departureAreas = new List<string>() { old.Location };
-//    if (D.LocationSets.ContainsKey(old.Location)) departureAreas.Add( D.LocationSets[old.Location] );
-//    
-//    var destinationAreas = new List<string>() { current.Location };
-//    if (D.LocationSets.ContainsKey(current.Location)) destinationAreas.Add( D.LocationSets[current.Location] );
-//    
-//    var progressCodes = new List<string>() { "p" + current.Progress };
-//    if (D.ProgressSets.ContainsKey(current.Progress)) progressCodes.Add( D.ProgressSets[current.Progress] );
-//    
-//    var validCodes = new List<string>();
-//    foreach (var dep in departureAreas) {
-//      foreach (var dest in destinationAreas) {
-//        string movement = dep + "_" + dest;
-//        validCodes.Add(movement);
-//        foreach (var prog in progressCodes)
-//          validCodes.Add(movement + "_" + prog);
-//      }
-//    }
-//    D.Debug("Location (" + string.Join(" ", validCodes) + ")");
-//    
-//    foreach (var code in validCodes) {
-//      if (D.SettingEnabled(code)) {
-//        if ( (!D.SplitCheck.ContainsKey(code)) || (D.SplitCheck[code]()) ) {
-//          if (D.Split(code)) return true;
-//        }
-//      }
-//    }
-//    D.Debug("No match, not splitting");
-//    
-//  }
-//  
-//  if (D.ActiveWatchCodes != null) {
-//    
-//    foreach (var code in D.ActiveWatchCodes) {
-//      int result = D.SplitWatch[code]();
-//      if (result == 0) continue;
-//      D.ActiveWatchCodes.Remove(code);
-//      if (result == 1) return D.Split(code);
-//      if (result == -1) return false;
-//    }
-//    
-//  }
-//  
   return false; 
 }
 
@@ -315,7 +181,7 @@ start {
   var D = vars.D;
   if (!D.GameActive) return false;
   
-  if ( (settings["o_startonnew"]) && (current.GameMode == 1 && old.GameMode != 1) ) {
+  if ( (settings["o_startonnew"]) && ((current.GameMode == 1 || current.GameMode == 6) && old.GameMode != 1) ) {
 		return true;
   
 //    var ptr = D.Read.Uint( D.VarAddr("StageAction") );
@@ -338,7 +204,7 @@ start {
 reset {
   var D = vars.D;
   if (!D.GameActive) return false;
-//  if ( ((current.Progress == -1) || (current.Progress == 0)) && (old.Progress != -1) )
-//   return D.ResetVars();
+  if (current.GameMode == -1 && old.GameMode != 1)
+   return D.ResetVars();
   return false;
 }
