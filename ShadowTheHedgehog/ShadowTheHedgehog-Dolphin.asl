@@ -1,13 +1,13 @@
-/****************************************************************/
-/* Autosplitter for Shadow the Hedgehog (USA) (Dolphin)                */
-/*                                                                     */
-/* Shadow adaptation of this autosplitter by dreamsyntax               */
-/* https://github.com/ShadowSpeedrun/LiveSplit-ASL-Scripts             */
-/*                                                                     */
-/* Original MGSTS script Created by bmn for MGSSpeedrunners            */
-/* Original Extra support by dlimes13, JosephJoestar316 & jazz_bears   */
-/* bmn/livesplit_asl_misc/mgstts/MGSTwinSnakes-Dolphin.asl             */
-/***********************************************************************/
+/***************************************************************************/
+/* Autosplitter for Shadow the Hedgehog (USA) (Dolphin)                    */
+/*                                                                         */
+/* Shadow adaptation of this autosplitter by dreamsyntax & BlazinZzetti    */
+/* https://github.com/ShadowSpeedrun/LiveSplit-ASL-Scripts                 */
+/*                                                                         */
+/* Original MGSTS script Created by bmn for MGSSpeedrunners                */
+/* Original Extra support by dlimes13, JosephJoestar316 & jazz_bears       */
+/* bmn/livesplit_asl_misc/mgstts/MGSTwinSnakes-Dolphin.asl                 */
+/***************************************************************************/
 
 state("Dolphin") {}
 
@@ -18,10 +18,10 @@ startup {
   
   settings.Add("behaviour", true, "Autosplitter Behaviour");
     settings.Add("o_autostart", true, "Auto Start", "behaviour");
-	    settings.SetToolTip("o_autostart", "Start as soon as Story Mode / Expert Mode is started");
-	settings.Add("o_autoreset", true, "Auto Reset", "behaviour");
-		settings.SetToolTip("o_autoreset", "Reset when returning to the Menu");
-    settings.Add("o_halfframerate", false, " Run splitter logic at 30 fps", "behaviour");
+        settings.SetToolTip("o_autostart", "Start as soon as Story Mode / Expert Mode is started");
+    settings.Add("o_autoreset", true, "Auto Reset", "behaviour");
+        settings.SetToolTip("o_autoreset", "Reset when returning to the Menu");
+    settings.Add("o_halfframerate", false, "Run splitter logic at 30 fps", "behaviour");
     settings.SetToolTip("o_halfframerate", "Can improve performance on weaker systems, at the cost of some precision.");
   
   vars.D = new ExpandoObject();
@@ -31,10 +31,14 @@ startup {
   D.GameActive = false;
   D.GameId = null;
   D.i = 0;
+  D.TotalGameTime = 0;
+  
+  // other race mode 57D918
   
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
     { "GUPX8P", new Dictionary<string, int>() { // USA
       { "GameTime", 0x57D734 },
+      { "SXGameTime", 0x57D908 },
       { "GameMode", 0x5EC170 },
       { "StageCompleted", 0x575F95 },
     } }
@@ -82,13 +86,8 @@ init {
   var D = vars.D;
   
   D.Debug = (Action<string>)((message) => {
-    message = "[" + current.GameTime + " < " + D.old.GameTime + "] " + message;
+    message = "[" + current.SXGameTime + " < " + D.old.SXGameTime + "] " + message;
     if (settings["debug_stdout"]) print("[ShdTH-AS] " + message);
-  });
-  
-  D.ManualSplit = (Action)(() => {
-    var timerModel = new TimerModel { CurrentState = timer };
-    timerModel.Split();
   });
   
   D.SettingEnabled = (Func<string, bool>)((key) => ( (settings.ContainsKey(key)) && (settings[key]) ));
@@ -115,18 +114,15 @@ init {
                       byte byte3 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+2));
                       byte byte4 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+3));                     
                       
-                      byte[] bytes = new byte[] { byte1, byte2, byte3, byte4 };
-                      
-                      Array.Reverse(bytes);
-                      
+                      byte[] bytes = new byte[] { byte4, byte3, byte2, byte1 };
+                                            
                       return BitConverter.ToSingle(bytes, 0);
                     });
 }
 
-// TODO: Why is this not working?
-// UInt is as expected, however float conversion is way off.
 gameTime {
-  return TimeSpan.FromSeconds((float)current.GameTime);
+  var D = vars.D;
+  return TimeSpan.FromSeconds(D.TotalGameTime + current.SXGameTime);
 }
 
 update {
@@ -142,25 +138,18 @@ update {
   
   if (!D.GameActive) {
     current.GameTime = 0;
+    current.SXGameTime = 0;
     return false;
   }
   
   current.GameTime = D.Read.Float(D.VarAddr("GameTime"));
+  current.SXGameTime = D.Read.Float(D.VarAddr("SXGameTime"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
-  
-//  D.Debug("Found Shadow memory at " + D.BaseAddr.ToString("X"));
-//  D.Debug("StageCompleted: (" + current.StageCompleted + ")");
-//  D.Debug("GameMode: (" + current.GameMode + ")");
-//  D.Debug("GameActive: (" + D.GameActive + ")");
-
-//  D.Debug("GameTime: (" + current.GameTime + ")");
-//  D.Debug("GameTimeF: (" + (double)current.GameTime + ")");
-  
   return true;
 }
 
-
+// TODO: Implement isLoading to prevent double time add IGT before next stage is loaded
 isLoading {
   return true;
 }
@@ -171,6 +160,7 @@ split {
   
   // TODO: for normal stages; need additional logic for boss stageIds and final boss split
   if (current.StageCompleted == 1 && old.StageCompleted == 0) {
+    D.TotalGameTime = D.TotalGameTime + current.SXGameTime;
     return true;
   }
   
@@ -181,6 +171,7 @@ start {
   var D = vars.D;
   if (!D.GameActive) return false;
   if ( (settings["o_autostart"]) && ((current.GameMode == 1 || current.GameMode == 6) && old.GameMode != 1) ) {
+    D.TotalGameTime = 0;
     return true;
   }
   return false;
@@ -189,7 +180,9 @@ start {
 reset {
   var D = vars.D;
   if (!D.GameActive) return false;
-  if ((settings["o_autoreset"]) && ((current.GameMode != 1 && old.GameMode == 1) || (current.GameMode != 6 && old.GameMode == 6)))
+  if ((settings["o_autoreset"]) && ((current.GameMode != 1 && old.GameMode == 1) || (current.GameMode != 6 && old.GameMode == 6))) {
+    D.TotalGameTime = 0;
     return true;
+  }
   return false;
 }
