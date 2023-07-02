@@ -109,6 +109,18 @@ init {
   });
   D.Read.String = (Func<int, int, string>)((addr, len) => memory.ReadString((IntPtr)D.AddrFor(addr), len));
 
+  D.Read.Float = (Func<int, float>)((addr) => {
+                      byte byte1 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr));
+                      byte byte2 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+1));
+                      byte byte3 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+2));
+                      byte byte4 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+3));                     
+                      
+                      byte[] bytes = new byte[] { byte1, byte2, byte3, byte4 };
+                      
+                      Array.Reverse(bytes);
+                      
+                      return BitConverter.ToSingle(bytes, 0);
+                    });
 }
 
 // TODO: Why is this not working?
@@ -133,7 +145,7 @@ update {
     return false;
   }
   
-  current.GameTime = D.Read.Uint(D.VarAddr("GameTime"));
+  current.GameTime = D.Read.Float(D.VarAddr("GameTime"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
   
