@@ -1,10 +1,13 @@
 /****************************************************************/
-/* Autosplitter for Metal Gear Solid: The Twin Snakes (Dolphin) */
-/*                                                              */
-/* Created by bmn for Metal Gear Solid Speedrunners             */
-/* Extra support by dlimes13, JosephJoestar316 & jazz_bears     */
-/* https://raw.githubusercontent.com/bmn/livesplit_asl_misc/mgstts/MGSTwinSnakes-Dolphin.asl -> original source used for Shadow*/
-/****************************************************************/
+/* Autosplitter for Shadow the Hedgehog (USA) (Dolphin)                */
+/*                                                                     */
+/* Shadow adaptation of this autosplitter by dreamsyntax               */
+/* https://github.com/ShadowSpeedrun/LiveSplit-ASL-Scripts             */
+/*                                                                     */
+/* Original MGSTS script Created by bmn for MGSSpeedrunners            */
+/* Original Extra support by dlimes13, JosephJoestar316 & jazz_bears   */
+/* bmn/livesplit_asl_misc/mgstts/MGSTwinSnakes-Dolphin.asl             */
+/***********************************************************************/
 
 state("Dolphin") {}
 
@@ -14,8 +17,10 @@ startup {
       settings.SetToolTip("debug_stdout", "This can be viewed in a tool such as DebugView.");
   
   settings.Add("behaviour", true, "Autosplitter Behaviour");
-    settings.Add("o_startonnew", true, " Start as soon as New is selected in Story Mode", "behaviour");
-    settings.Add("o_norepeat", true, " Suppress repeats of the same split", "behaviour");
+    settings.Add("o_autostart", true, "Auto Start", "behaviour");
+	    settings.SetToolTip("o_autostart", "Start as soon as Story Mode / Expert Mode is started");
+	settings.Add("o_autoreset", true, "Auto Reset", "behaviour");
+		settings.SetToolTip("o_autoreset", "Reset when returning to the Menu");
     settings.Add("o_halfframerate", false, " Run splitter logic at 30 fps", "behaviour");
     settings.SetToolTip("o_halfframerate", "Can improve performance on weaker systems, at the cost of some precision.");
   
@@ -23,18 +28,15 @@ startup {
   var D = vars.D;
   
   D.BaseAddr = IntPtr.Zero;
-  D.CompletedSplits = new Dictionary<string, bool>();
-  D.DebugFileList = new List<string>();
   D.GameActive = false;
   D.GameId = null;
-  D.ActiveWatchCodes = null;
   D.i = 0;
   
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
     { "GUPX8P", new Dictionary<string, int>() { // USA
       { "GameTime", 0x57D734 },
-	  { "GameMode", 0x5EC170 },
-	  { "StageCompleted", 0x575F95 },
+      { "GameMode", 0x5EC170 },
+      { "StageCompleted", 0x575F95 },
     } }
   };
     
@@ -72,7 +74,6 @@ startup {
   D.VarAddr = (Func<string, int>)((key) => D.Addr[D.GameId][key]);
   
   D.ResetVars = (Func<bool>)(() => {
-    D.CompletedSplits.Clear();
     return true;
   });
 }
@@ -82,19 +83,7 @@ init {
   
   D.Debug = (Action<string>)((message) => {
     message = "[" + current.GameTime + " < " + D.old.GameTime + "] " + message;
-    if (settings["debug_stdout"]) print("[TTS-AS] " + message);
-  });
-  
-  D.Split = (Func<string, bool>)((code) => {
-    if ((settings["o_norepeat"]) && (D.CompletedSplits.ContainsKey(code))) {
-      D.Debug("Repeat split for " + code + ", not splitting");
-      return false;
-    }
-    else {
-      D.Debug("Splitting for " + code);
-      D.CompletedSplits.Add(code, true);
-      return true;
-    }
+    if (settings["debug_stdout"]) print("[ShdTH-AS] " + message);
   });
   
   D.ManualSplit = (Action)(() => {
@@ -123,6 +112,7 @@ init {
 }
 
 // TODO: Why is this not working?
+// UInt is as expected, however float conversion is way off.
 gameTime {
   return TimeSpan.FromSeconds((float)current.GameTime);
 }
@@ -151,11 +141,9 @@ update {
 //  D.Debug("StageCompleted: (" + current.StageCompleted + ")");
 //  D.Debug("GameMode: (" + current.GameMode + ")");
 //  D.Debug("GameActive: (" + D.GameActive + ")");
-//	D.Debug("GameTime: (" + current.GameTime + ")");
-//	D.Debug("GameTimeF: (" + (double)current.GameTime + ")");
 
-
-
+//  D.Debug("GameTime: (" + current.GameTime + ")");
+//  D.Debug("GameTimeF: (" + (double)current.GameTime + ")");
   
   return true;
 }
@@ -169,9 +157,9 @@ split {
   var D = vars.D;
   if (!D.GameActive) return false;
   
-  // for normal stages; need additional logic for boss stageIds and final boss split
-  if ((current.StageCompleted == 1 || current.StageCompleted == 6) && old.StageCompleted == 0) {
-	return true;
+  // TODO: for normal stages; need additional logic for boss stageIds and final boss split
+  if (current.StageCompleted == 1 && old.StageCompleted == 0) {
+    return true;
   }
   
   return false; 
@@ -180,31 +168,16 @@ split {
 start {
   var D = vars.D;
   if (!D.GameActive) return false;
-  
-  if ( (settings["o_startonnew"]) && ((current.GameMode == 1 || current.GameMode == 6) && old.GameMode != 1) ) {
-		return true;
-  
-//    var ptr = D.Read.Uint( D.VarAddr("StageAction") );
-//    if (ptr != 0) {
-//      ptr &= 0x0fffffff;
-//      if (
-//        ( (D.Read.Byte((int)ptr + 0xe3) == 1) && (D.Read.Byte((int)ptr + 0x4f) == 7) ) // NG
-//        || ( (D.Read.Byte((int)ptr + 0xe1) == 1) && (D.Read.Byte((int)ptr + 0x4d) == 7) ) // Load
-//      )
-//        return D.ResetVars();
-//    }
+  if ( (settings["o_autostart"]) && ((current.GameMode == 1 || current.GameMode == 6) && old.GameMode != 1) ) {
+    return true;
   }
-  
-//  if ( (current.StageAction == 3) && (old.StageAction == -1) )
-//    return D.ResetVars();
-    
   return false;
 }
 
 reset {
   var D = vars.D;
   if (!D.GameActive) return false;
-  if (current.GameMode == -1 && old.GameMode != 1)
-   return D.ResetVars();
+  if ((settings["o_autoreset"]) && ((current.GameMode != 1 && old.GameMode == 1) || (current.GameMode != 6 && old.GameMode == 6)))
+    return true;
   return false;
 }
