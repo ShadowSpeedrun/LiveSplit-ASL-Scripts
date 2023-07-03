@@ -1,4 +1,6 @@
 # LiveSplit-ASL-Scripts
 Autosplitting Scripts for Shadow the Hedgehog
 
-Using scripts from https://github.com/skewbmaster/Livesplit-ASL-Scripts as a base
+This is intended for use with the Shadow SX ROM hack.
+
+Using script from https://github.com/bmn/livesplit_asl_misc/tree/mgstts as a base
