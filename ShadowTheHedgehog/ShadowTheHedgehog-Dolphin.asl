@@ -32,15 +32,18 @@ startup {
   D.GameId = null;
   D.i = 0;
   D.TotalGameTime = 0;
+  D.BossCutsceneCounter = 0;
   
   // other race mode 57D918
-  
+    
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
     { "GUPX8P", new Dictionary<string, int>() { // USA
       { "GameTime", 0x57D734 },
       { "SXGameTime", 0x57D908 },
       { "GameMode", 0x5EC170 },
       { "StageCompleted", 0x575F95 },
+      { "StageID", 0x57D748 },
+	  { "HUDStatus", 0x57D7E8 },
     } }
   };
     
@@ -139,6 +142,7 @@ update {
   if (!D.GameActive) {
     current.GameTime = 0;
     current.SXGameTime = 0;
+	current.HUDStatus = 0;
     return false;
   }
   
@@ -146,6 +150,18 @@ update {
   current.SXGameTime = D.Read.Float(D.VarAddr("SXGameTime"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
+  current.StageID = D.Read.Uint(D.VarAddr("StageID"));
+  current.HUDStatus = D.Read.Byte(D.VarAddr("HUDStatus"));
+  
+  if (current.HUDStatus == 0 && old.HUDStatus != 0) {
+	D.BossCutsceneCounter++;
+  }
+  
+  if (current.GameTime < 3) {
+    D.BossCutsceneCounter = 0;
+  }
+  
+
   return true;
 }
 
@@ -157,11 +173,47 @@ isLoading {
 split {
   var D = vars.D;
   if (!D.GameActive) return false;
-  
+  D.Debug("GameTime: (" + current.GameTime + ")");
+  D.Debug("BossCount: (" + D.BossCutsceneCounter + ")");
   // TODO: for normal stages; need additional logic for boss stageIds and final boss split
-  if (current.StageCompleted == 1 && old.StageCompleted == 0) {
-    D.TotalGameTime = D.TotalGameTime + current.SXGameTime;
-    return true;
+  // EggDealer needs its own method, stg 612, 614, 615
+  
+  switch ((int)current.StageID) {
+	case 210:
+	case 310:
+	case 410:
+	case 411:
+	case 412:
+	case 510:
+	case 511:
+	case 610:
+	case 611:
+	case 613:
+	case 616:
+	case 617:
+	case 618:
+		// count 2 times, but if on stage reset (death / restart), clear
+		if (D.BossCutsceneCounter == 2) {
+			D.TotalGameTime = D.TotalGameTime + current.SXGameTime;
+			D.BossCutsceneCounter = 0;
+			return true;
+		}
+		break;
+	case 710:
+		// count 3 times, but if on stage reset (death / restart), clear
+		if (D.BossCutsceneCounter == 3) {
+			D.TotalGameTime = D.TotalGameTime + current.SXGameTime;
+			D.BossCutsceneCounter = 0;
+			return true;
+		}
+		break;
+	default:
+	  if (current.StageCompleted == 1 && old.StageCompleted == 0) {
+		D.TotalGameTime = D.TotalGameTime + current.SXGameTime;
+		D.BossCutsceneCounter = 0;
+		return true;
+	  }
+	  break;
   }
   
   return false; 
@@ -172,6 +224,7 @@ start {
   if (!D.GameActive) return false;
   if ( (settings["o_autostart"]) && ((current.GameMode == 1 || current.GameMode == 6) && old.GameMode != 1) ) {
     D.TotalGameTime = 0;
+	D.BossCutsceneCounter = 0;
     return true;
   }
   return false;
@@ -182,6 +235,7 @@ reset {
   if (!D.GameActive) return false;
   if ((settings["o_autoreset"]) && ((current.GameMode != 1 && old.GameMode == 1) || (current.GameMode != 6 && old.GameMode == 6))) {
     D.TotalGameTime = 0;
+	D.BossCutsceneCounter = 0;
     return true;
   }
   return false;
