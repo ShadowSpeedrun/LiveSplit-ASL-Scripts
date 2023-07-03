@@ -39,7 +39,7 @@ startup {
       { "StageID", 0x57D748 },
       { "BossHP", 0x5EE65C },
     } },
-	{ "GUPE8P", new Dictionary<string, int>() { // Shadow: Reloaded & USA
+    { "GUPE8P", new Dictionary<string, int>() { // Shadow: Reloaded & USA
       { "GameTime", 0x57D734 },
       { "GameMode", 0x5EC170 },
       { "StageCompleted", 0x575F95 },
@@ -149,7 +149,6 @@ update {
   return true;
 }
 
-// TODO: Implement isLoading to prevent double time add IGT before next stage is loaded
 isLoading {
   return true;
 }
