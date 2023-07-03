@@ -12,7 +12,7 @@
 state("Dolphin") {}
 
 startup {
-  settings.Add("features", true, "Debug Logging");
+  settings.Add("features", false, "Debug Logging");
     settings.Add("debug_stdout", false, "Log debug information to Windows debug log", "features");
       settings.SetToolTip("debug_stdout", "This can be viewed in a tool such as DebugView.");
   
@@ -20,9 +20,7 @@ startup {
     settings.Add("o_autostart", true, "Auto Start", "behaviour");
         settings.SetToolTip("o_autostart", "Start as soon as Story Mode / Expert Mode is started");
     settings.Add("o_autoreset", true, "Auto Reset", "behaviour");
-        settings.SetToolTip("o_autoreset", "Reset when returning to the Menu");
-    settings.Add("o_reloadedmode", false, "Shadow: Reloaded Mode", "behaviour");
-        settings.SetToolTip("o_reloadedmode", "NOT YET IMPLEMENTED. Make compatible with the Reloaded v1.1+ Mod. Do not use if playing Shadow SX!");
+        settings.SetToolTip("o_autoreset", "Reset when returning to the Menu. Turn OFF for Multi-Story Runs");
     settings.Add("o_halfframerate", false, "Run splitter logic at 30 fps", "behaviour");
     settings.SetToolTip("o_halfframerate", "Can improve performance on weaker systems, at the cost of some precision.");
   
@@ -35,13 +33,19 @@ startup {
   D.i = 0;
   D.TotalGameTime = 0;
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
-    { "GUPX8P", new Dictionary<string, int>() { // USA
-      { "GameTime", 0x57D734 },
-      { "SXGameTime", 0x57D908 },
+    { "GUPX8P", new Dictionary<string, int>() { // Shadow SX
+      { "GameTime", 0x57D908 },
       { "GameMode", 0x5EC170 },
       { "StageCompleted", 0x575F95 },
       { "StageID", 0x57D748 },
-	  { "BossHP", 0x5EE65C },
+      { "BossHP", 0x5EE65C },
+    } },
+	{ "GUPE8P", new Dictionary<string, int>() { // Shadow: Reloaded & USA
+      { "GameTime", 0x57D734 },
+      { "GameMode", 0x5EC170 },
+      { "StageCompleted", 0x575F95 },
+      { "StageID", 0x57D748 },
+      { "BossHP", 0x5EE65C },
     } }
   };
     
@@ -81,7 +85,7 @@ init {
   var D = vars.D;
   
   D.Debug = (Action<string>)((message) => {
-    message = "[" + current.SXGameTime + " < " + D.old.SXGameTime + "] " + message;
+    message = "[" + current.GameTime + " < " + D.old.GameTime + "] " + message;
     if (settings["debug_stdout"]) print("[ShdTH-AS] " + message);
   });
   
@@ -117,7 +121,7 @@ init {
 
 gameTime {
   var D = vars.D;
-  return TimeSpan.FromSeconds(D.TotalGameTime + current.SXGameTime);
+  return TimeSpan.FromSeconds(D.TotalGameTime + current.GameTime);
 }
 
 update {
@@ -133,13 +137,11 @@ update {
   
   if (!D.GameActive) {
     current.GameTime = 0;
-    current.SXGameTime = 0;
-	current.BossHP = 0;
+    current.BossHP = 0;
     return false;
   }
   
   current.GameTime = D.Read.Float(D.VarAddr("GameTime"));
-  current.SXGameTime = D.Read.Float(D.VarAddr("SXGameTime"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
   current.StageID = D.Read.Uint(D.VarAddr("StageID"));
@@ -158,34 +160,34 @@ split {
   if (!D.GameActive) return false;
   
   switch ((int)current.StageID) {
-	case 210:
-	case 310:
-	case 410:
-	case 411:
-	case 412:
-	case 510:
-	case 511:
-	case 610:
-	case 611:
-	case 612:
-	case 613:
-	case 614:
-	case 615:
-	case 616:
-	case 617:
-	case 618:
-	case 710:
-		if (current.BossHP == 0 && old.BossHP != 0) {
-			D.TotalGameTime = D.TotalGameTime + current.SXGameTime;
-			return true;
-		}
-		break;
-	default:
-	  if (current.StageCompleted == 1 && old.StageCompleted == 0) {
-		D.TotalGameTime = D.TotalGameTime + current.SXGameTime;
-		return true;
-	  }
-	  break;
+    case 210:
+    case 310:
+    case 410:
+    case 411:
+    case 412:
+    case 510:
+    case 511:
+    case 610:
+    case 611:
+    case 612:
+    case 613:
+    case 614:
+    case 615:
+    case 616:
+    case 617:
+    case 618:
+    case 710:
+    if (current.BossHP == 0 && old.BossHP != 0) {
+      D.TotalGameTime = D.TotalGameTime + current.GameTime;
+      return true;
+    }
+    break;
+    default:
+      if (current.StageCompleted == 1 && old.StageCompleted == 0) {
+        D.TotalGameTime = D.TotalGameTime + current.GameTime;
+        return true;
+      }
+      break;
   }
   
   return false; 
