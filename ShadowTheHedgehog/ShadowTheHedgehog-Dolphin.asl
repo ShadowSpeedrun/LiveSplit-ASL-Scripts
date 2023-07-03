@@ -1,12 +1,11 @@
 /***************************************************************************/
-/* Autosplitter for Shadow the Hedgehog (USA) (Dolphin)                    */
-/*                                                                         */
-/* Shadow adaptation of this autosplitter by dreamsyntax & BlazinZzetti    */
+/* Autosplitter for Shadow the Hedgehog (Dolphin)                          */
 /* https://github.com/ShadowSpeedrun/LiveSplit-ASL-Scripts                 */
+/* by dreamsyntax & BlazinZzetti                                           */
 /*                                                                         */
-/* Original MGSTS script Created by bmn for MGSSpeedrunners                */
-/* Original Extra support by dlimes13, JosephJoestar316 & jazz_bears       */
-/* bmn/livesplit_asl_misc/mgstts/MGSTwinSnakes-Dolphin.asl                 */
+/* MGSTS script by bmn used as base                                        */
+/* https://github.com/bmn/livesplit_asl_misc/tree/mgstts                   */
+/*                                                                         */
 /***************************************************************************/
 
 state("Dolphin") {}
