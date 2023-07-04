@@ -38,6 +38,7 @@ startup {
       { "StageCompleted", 0x575F95 },
       { "StageID", 0x57D748 },
       { "BossHP", 0x5EE65C },
+      { "InCutscene", 0x57D8F9 },
     } },
     { "GUPE8P", new Dictionary<string, int>() { // Shadow: Reloaded & USA
       { "GameTime", 0x57D734 },
@@ -45,6 +46,9 @@ startup {
       { "StageCompleted", 0x575F95 },
       { "StageID", 0x57D748 },
       { "BossHP", 0x5EE65C },
+      { "InCutscene", 0x57D8F9 },
+      //"InCutscene" is specific to SX. So we'll need another flag to get this autosplitter working the same as SX.
+      //This memory location should be 0 normally, so shouldnt prevent the autosplitter from working.
     } }
   };
     
@@ -78,11 +82,64 @@ startup {
   
   D.AddrFor = (Func<int, IntPtr>)((val) => (IntPtr)((long)D.BaseAddr + val));
   D.VarAddr = (Func<string, int>)((key) => D.Addr[D.GameId][key]);
+  
+  D.IsValidStageID = (Func<uint, byte>)((stageID) => {
+    switch (stageID) {
+      case 100:
+      case 200:
+      case 201:
+      case 202:
+      case 210:
+      case 300:
+      case 301:
+      case 302:
+      case 310:
+      case 400:
+      case 401:
+      case 402:
+      case 403:
+      case 404:
+      case 410:
+      case 411:
+      case 412:
+      case 500:
+      case 501:
+      case 502:
+      case 503:
+      case 504:
+      case 510:
+      case 511:
+      case 600:
+      case 601:
+      case 602:
+      case 603:
+      case 604:
+      case 605:
+      case 610:
+      case 611:
+      case 612:
+      case 613:
+      case 614:
+      case 615:
+      case 616:
+      case 617:
+      case 618:
+      case 710:
+      case 700:
+        return 1;
+      default:
+        return 0;
+    }
+  });
 }
 
 init {
   var D = vars.D;
-  
+
+  //Globals to keep track of when the game timer should start tracking.
+  D.StartTime = 0;
+  D.HasStageChanged = 0;
+
   D.Debug = (Action<string>)((message) => {
     message = "[" + current.GameTime + " < " + D.old.GameTime + "] " + message;
     if (settings["debug_stdout"]) print("[ShdTH-AS] " + message);
@@ -107,20 +164,34 @@ init {
   D.Read.String = (Func<int, int, string>)((addr, len) => memory.ReadString((IntPtr)D.AddrFor(addr), len));
 
   D.Read.Float = (Func<int, float>)((addr) => {
-                      byte byte1 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr));
-                      byte byte2 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+1));
-                      byte byte3 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+2));
-                      byte byte4 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+3));                     
-                      
-                      byte[] bytes = new byte[] { byte4, byte3, byte2, byte1 };
-                                            
-                      return BitConverter.ToSingle(bytes, 0);
-                    });
+
+    byte byte1 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr));
+    byte byte2 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+1));
+    byte byte3 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+2));
+    byte byte4 = memory.ReadValue<byte>((IntPtr)D.AddrFor(addr+3));
+
+    byte[] bytes = new byte[] { byte4, byte3, byte2, byte1 };
+
+    //Reads all bytes at once, but not ideal reverse of said bytes.
+    //byte[] bytes = memory.ReadBytes((IntPtr)D.AddrFor(addr), 4);
+    //Array.Reverse(bytes);
+                                               
+    return BitConverter.ToSingle(bytes, 0);
+  });
 }
 
 gameTime {
   var D = vars.D;
-  return TimeSpan.FromSeconds(D.TotalGameTime + current.GameTime);
+
+  //Only show the additional time when given the ok to start accounting for it.
+  if(D.StartTime == 1)
+  {
+    return TimeSpan.FromSeconds(D.TotalGameTime + current.GameTime);
+  }
+  else
+  {
+    return TimeSpan.FromSeconds(D.TotalGameTime);
+  }
 }
 
 update {
@@ -146,6 +217,21 @@ update {
   current.StageID = D.Read.Uint(D.VarAddr("StageID"));
   current.BossHP = D.Read.Float(D.VarAddr("BossHP"));
 
+  //Only set once per split. Detect that we have at least left 
+  //the current stage before attempting to see if we are in a valid stage.
+  if(D.HasStageChanged == 0) {
+    D.HasStageChanged = ((old.StageID != current.StageID) ? 1 : 0);
+  }
+
+  //Only set once per split. Detect if we are not in a cutscene and we are in a new stage.
+  if(D.StartTime == 0 && D.HasStageChanged == 1 && D.Read.Byte(D.VarAddr("InCutscene")) == 0) {
+    D.StartTime = D.IsValidStageID(current.StageID);
+  }
+
+  //TODO: Need to add "Delay Frames" where desipte meeting all conditions, we do not start adding
+  //new time until a few frames have passed. This will allow us to skip the quick stuttering in the
+  //timer due to the game trying to add time before reseting again.
+
   return true;
 }
 
@@ -157,6 +243,8 @@ split {
   var D = vars.D;
   if (!D.GameActive) return false;
   
+  bool willSplit = false;
+
   switch ((int)current.StageID) {
     case 210:
     case 310:
@@ -176,19 +264,25 @@ split {
     case 618:
     case 710:
     if (current.BossHP == 0 && old.BossHP != 0) {
-      D.TotalGameTime = D.TotalGameTime + current.GameTime;
-      return true;
+      willSplit =  true;
     }
     break;
     default:
       if (current.StageCompleted == 1 && old.StageCompleted == 0) {
-        D.TotalGameTime = D.TotalGameTime + current.GameTime;
-        return true;
+        willSplit = true;
       }
       break;
   }
+
+  //If we are going to be spliting, prepare variables for the next split.
+  if(willSplit)
+  {
+    D.TotalGameTime = D.TotalGameTime + current.GameTime;
+    D.StartTime = 0;
+    D.HasStageChanged = 0;
+  }
   
-  return false; 
+  return willSplit; 
 }
 
 start {
@@ -196,6 +290,8 @@ start {
   if (!D.GameActive) return false;
   if ( (settings["o_autostart"]) && ((current.GameMode == 1 || current.GameMode == 6) && old.GameMode != 1) ) {
     D.TotalGameTime = 0;
+    D.StartTime = 0;
+    D.HasStageChanged = 0;
     return true;
   }
   return false;
@@ -206,6 +302,8 @@ reset {
   if (!D.GameActive) return false;
   if ((settings["o_autoreset"]) && ((current.GameMode != 1 && old.GameMode == 1) || (current.GameMode != 6 && old.GameMode == 6))) {
     D.TotalGameTime = 0;
+    D.StartTime = 0;
+    D.HasStageChanged = 0;
     return true;
   }
   return false;
