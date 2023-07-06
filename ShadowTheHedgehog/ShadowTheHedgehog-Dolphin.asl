@@ -31,6 +31,7 @@ startup {
   D.GameId = null;
   D.i = 0;
   D.TotalGameTime = 0;
+  D.BossSplitCondition = false;
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
     { "GUPX8P", new Dictionary<string, int>() { // Shadow SX
       { "GameTime", 0x57D908 },
@@ -38,6 +39,7 @@ startup {
       { "StageCompleted", 0x575F95 },
       { "StageID", 0x57D748 },
       { "BossHP", 0x5EE65C },
+      { "HUDStatus", 0x57D7E8 },
       { "InCutscene", 0x57D8F9 },
     } },
     { "GUPE8P", new Dictionary<string, int>() { // Shadow: Reloaded & USA
@@ -46,9 +48,10 @@ startup {
       { "StageCompleted", 0x575F95 },
       { "StageID", 0x57D748 },
       { "BossHP", 0x5EE65C },
+      { "HUDStatus", 0x57D7E8 },
       { "InCutscene", 0x57D8F9 },
-      //"InCutscene" is specific to SX. So we'll need another flag to get this autosplitter working the same as SX.
-      //This memory location should be 0 normally, so shouldnt prevent the autosplitter from working.
+      // "InCutscene" is specific to SX. So we'll need another flag to get this autosplitter working the same as SX.
+      // This memory location should be 0 normally, so shouldnt prevent the autosplitter from working.
     } }
   };
     
@@ -114,7 +117,6 @@ startup {
       case 602:
       case 603:
       case 604:
-      case 605:
       case 610:
       case 611:
       case 612:
@@ -124,8 +126,8 @@ startup {
       case 616:
       case 617:
       case 618:
-      case 710:
       case 700:
+      case 710:
         return 1;
       default:
         return 0;
@@ -136,9 +138,11 @@ startup {
 init {
   var D = vars.D;
 
-  //Globals to keep track of when the game timer should start tracking.
+  // Globals to keep track of when the game timer should start tracking.
   D.StartTime = 0;
   D.HasStageChanged = 0;
+  // Boss specific
+  D.BossSplitCondition = false;
 
   D.Debug = (Action<string>)((message) => {
     message = "[" + current.GameTime + " < " + D.old.GameTime + "] " + message;
@@ -207,7 +211,8 @@ update {
   
   if (!D.GameActive) {
     current.GameTime = 0;
-    current.BossHP = 0;
+    current.BossHP = 1;
+    current.HUDStatus = 1;
     return false;
   }
   
@@ -215,22 +220,23 @@ update {
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
   current.StageID = D.Read.Uint(D.VarAddr("StageID"));
+  current.HUDStatus = D.Read.Byte(D.VarAddr("HUDStatus"));
   current.BossHP = D.Read.Float(D.VarAddr("BossHP"));
 
-  //Only set once per split. Detect that we have at least left 
-  //the current stage before attempting to see if we are in a valid stage.
+  //  Only set once per split. Detect that we have at least left
+  //  the current stage before attempting to see if we are in a valid stage.
   if(D.HasStageChanged == 0) {
     D.HasStageChanged = ((old.StageID != current.StageID) ? 1 : 0);
   }
 
-  //Only set once per split. Detect if we are not in a cutscene and we are in a new stage.
+  //  Only set once per split. Detect if we are not in a cutscene and we are in a new stage.
   if(D.StartTime == 0 && D.HasStageChanged == 1 && D.Read.Byte(D.VarAddr("InCutscene")) == 0) {
     D.StartTime = D.IsValidStageID(current.StageID);
   }
 
-  //TODO: Need to add "Delay Frames" where desipte meeting all conditions, we do not start adding
-  //new time until a few frames have passed. This will allow us to skip the quick stuttering in the
-  //timer due to the game trying to add time before reseting again.
+  //  TODO: Need to add "Delay Frames" where despite meeting all conditions, we do not start adding
+  //  new time until a few frames have passed. This will allow us to skip the quick stuttering in the
+  //  timer due to the game trying to add time before reseting again.
 
   return true;
 }
@@ -263,9 +269,13 @@ split {
     case 617:
     case 618:
     case 710:
-    if (current.BossHP == 0 && old.BossHP != 0) {
-      willSplit =  true;
-    }
+      if (current.BossHP == 0 && old.BossHP != 0) {
+        D.BossSplitCondition = true;
+      }
+      // HUD Status is not guaranteed on same frame for Diablon, so this cannot be part of the above check
+      if (D.BossSplitCondition && (current.HUDStatus == 0 && old.HUDStatus != 0)) {
+        willSplit = true;
+      }
     break;
     default:
       if (current.StageCompleted == 1 && old.StageCompleted == 0) {
@@ -280,6 +290,7 @@ split {
     D.TotalGameTime = D.TotalGameTime + current.GameTime;
     D.StartTime = 0;
     D.HasStageChanged = 0;
+    D.BossSplitCondition = false;
   }
   
   return willSplit; 
@@ -292,6 +303,7 @@ start {
     D.TotalGameTime = 0;
     D.StartTime = 0;
     D.HasStageChanged = 0;
+    D.BossSplitCondition = false;
     return true;
   }
   return false;
@@ -304,6 +316,7 @@ reset {
     D.TotalGameTime = 0;
     D.StartTime = 0;
     D.HasStageChanged = 0;
+    D.BossSplitCondition = false;
     return true;
   }
   return false;
