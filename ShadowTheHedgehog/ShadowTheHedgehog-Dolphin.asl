@@ -36,6 +36,7 @@ startup {
     { "GUPX8P", new Dictionary<string, int>() { // Shadow SX
       { "GameTime", 0x57D908 },
       { "GameMode", 0x5EC170 },
+      { "StageAction", 0x575F80 },
       { "StageCompleted", 0x575F95 },
       { "StageID", 0x57D748 },
       { "BossHP", 0x5EE65C },
@@ -45,6 +46,7 @@ startup {
     { "GUPE8P", new Dictionary<string, int>() { // Shadow: Reloaded & USA
       { "GameTime", 0x57D734 },
       { "GameMode", 0x5EC170 },
+      { "StageAction", 0x575F80 },
       { "StageCompleted", 0x575F95 },
       { "StageID", 0x57D748 },
       { "BossHP", 0x5EE65C },
@@ -211,6 +213,7 @@ update {
   
   if (!D.GameActive) {
     current.GameTime = 0;
+    current.StageID = -1;
     current.BossHP = 1;
     current.HUDStatus = 1;
     return false;
@@ -218,6 +221,7 @@ update {
   
   current.GameTime = D.Read.Float(D.VarAddr("GameTime"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
+  current.StageAction = D.Read.Uint(D.VarAddr("StageAction"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
   current.StageID = D.Read.Uint(D.VarAddr("StageID"));
   current.HUDStatus = D.Read.Byte(D.VarAddr("HUDStatus"));
@@ -284,13 +288,24 @@ split {
       break;
   }
 
-  //If we are going to be spliting, prepare variables for the next split.
+  //  If we are going to be spliting, prepare variables for the next split.
   if(willSplit)
   {
     D.TotalGameTime = D.TotalGameTime + current.GameTime;
     D.StartTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
+  } else {
+    //  If we are not splitting, add TotalGameTime for...
+    //  Restarting a stage in Select Mode (0)
+    if (current.GameMode == 0 && current.StageAction == 7 && old.StageAction != 7) {
+      D.TotalGameTime = D.TotalGameTime + current.GameTime;
+      D.StartTime = 0;
+    }
+  
+    //  Quitting a stage in any mode for non-special categories (ex Gold Beetle)
+  
+    //  First frame of dying in a stage (Non-SX only)
   }
   
   return willSplit; 
