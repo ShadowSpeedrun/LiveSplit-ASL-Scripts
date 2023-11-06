@@ -31,6 +31,8 @@ startup {
   D.GameId = null;
   D.i = 0;
   D.TotalGameTime = 0;
+  D.PreCrashTime = 0;
+  D.LastCurrentTime = 0;
   D.BossSplitCondition = false;
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
     { "GUPX8P", new Dictionary<string, int>() { // Shadow SX
@@ -142,6 +144,7 @@ init {
 
   // Globals to keep track of when the game timer should start tracking.
   D.StartTime = 0;
+  D.LastCurrentTime = 0;
   D.HasStageChanged = 0;
   // Boss specific
   D.BossSplitCondition = false;
@@ -192,7 +195,13 @@ gameTime {
   //Only show the additional time when given the ok to start accounting for it.
   if(D.StartTime == 1)
   {
-    return TimeSpan.FromSeconds(D.TotalGameTime + current.GameTime);
+    //If LCT is ever higher than CGT, a crash occurred.
+    if (D.LastCurrentTime > current.GameTime)
+    {
+      D.PreCrashTime += D.LastCurrentTime;
+    }
+    D.LastCurrentTime = current.GameTime;
+    return TimeSpan.FromSeconds(D.TotalGameTime + D.PreCrashTime + current.GameTime);
   }
   else
   {
@@ -218,8 +227,14 @@ update {
     current.HUDStatus = 1;
     return false;
   }
-  
-  current.GameTime = D.Read.Float(D.VarAddr("GameTime"));
+  if(D.StartTime == 1)
+  {
+    current.GameTime = D.Read.Float(D.VarAddr("GameTime"));
+  }
+  else
+  {
+    current.GameTime = 0;
+  }
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageAction = D.Read.Uint(D.VarAddr("StageAction"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
@@ -291,15 +306,17 @@ split {
   //  If we are going to be spliting, prepare variables for the next split.
   if(willSplit)
   {
-    D.TotalGameTime = D.TotalGameTime + current.GameTime;
+    D.TotalGameTime = D.TotalGameTime + D.PreCrashTime + current.GameTime;
     D.StartTime = 0;
+    D.PreCrashTime = 0;
+    D.LastCurrentTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
   } else {
     //  If we are not splitting, add TotalGameTime for...
     //  Restarting a stage in Select Mode (0)
     if (current.GameMode == 0 && current.StageAction == 7 && old.StageAction != 7) {
-      D.TotalGameTime = D.TotalGameTime + current.GameTime;
+      D.TotalGameTime = D.TotalGameTime + D.PreCrashTime + current.GameTime;
       D.StartTime = 0;
     }
   
@@ -317,6 +334,8 @@ start {
   if ( (settings["o_autostart"]) && ((current.GameMode == 1 || current.GameMode == 6) && old.GameMode != 1) ) {
     D.TotalGameTime = 0;
     D.StartTime = 0;
+    D.LastCurrentTime = 0;
+    D.PreCrashTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
     return true;
@@ -330,6 +349,8 @@ reset {
   if ((settings["o_autoreset"]) && ((current.GameMode != 1 && old.GameMode == 1) || (current.GameMode != 6 && old.GameMode == 6))) {
     D.TotalGameTime = 0;
     D.StartTime = 0;
+    D.LastCurrentTime = 0;
+    D.PreCrashTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
     return true;
