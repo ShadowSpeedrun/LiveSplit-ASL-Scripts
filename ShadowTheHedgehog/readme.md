@@ -6,7 +6,7 @@
   - has some funky double add during restart, but corrects itself after resume
 - [ ] Quitting and Resuming a stage in Select Mode
 - [ ] Game Mode in Story Mode (and Select in Reloaded)
-- [ ] Resetting game due to crashing (include dolphin wipe/close scenario rather than reset button)
+- [x] Resetting game due to crashing (include dolphin wipe/close scenario rather than reset button)
 
 ### Multi Path / Non Story Features
 - [ ] 'number of splits' - you won't necessarily know how many stages to cleanup in Select Mode
