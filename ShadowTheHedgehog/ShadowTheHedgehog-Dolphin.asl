@@ -31,7 +31,6 @@ startup {
   D.GameId = null;
   D.i = 0;
   D.TotalGameTime = 0;
-  D.PreCrashTime = 0;
   D.LastCurrentTime = 0;
   D.BossSplitCondition = false;
   D.Addr = new Dictionary<string, Dictionary<string, int>>() {
@@ -196,12 +195,12 @@ gameTime {
   if(D.StartTime == 1)
   {
     //If LCT is ever higher than CGT, a crash occurred.
-    if (D.LastCurrentTime > current.GameTime)
+    if (D.LastCurrentTime > current.GameTime && current.GameTime == 0)
     {
-      D.PreCrashTime += D.LastCurrentTime;
+      D.TotalGameTime += D.LastCurrentTime;
     }
     D.LastCurrentTime = current.GameTime;
-    return TimeSpan.FromSeconds(D.TotalGameTime + D.PreCrashTime + current.GameTime);
+    return TimeSpan.FromSeconds(D.TotalGameTime + current.GameTime);
   }
   else
   {
@@ -306,9 +305,8 @@ split {
   //  If we are going to be spliting, prepare variables for the next split.
   if(willSplit)
   {
-    D.TotalGameTime = D.TotalGameTime + D.PreCrashTime + current.GameTime;
+    D.TotalGameTime = D.TotalGameTime + current.GameTime;
     D.StartTime = 0;
-    D.PreCrashTime = 0;
     D.LastCurrentTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
@@ -316,7 +314,7 @@ split {
     //  If we are not splitting, add TotalGameTime for...
     //  Restarting a stage in Select Mode (0)
     if (current.GameMode == 0 && current.StageAction == 7 && old.StageAction != 7) {
-      D.TotalGameTime = D.TotalGameTime + D.PreCrashTime + current.GameTime;
+      D.TotalGameTime = D.TotalGameTime + current.GameTime;
       D.StartTime = 0;
     }
   
@@ -335,7 +333,6 @@ start {
     D.TotalGameTime = 0;
     D.StartTime = 0;
     D.LastCurrentTime = 0;
-    D.PreCrashTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
     return true;
@@ -350,7 +347,6 @@ reset {
     D.TotalGameTime = 0;
     D.StartTime = 0;
     D.LastCurrentTime = 0;
-    D.PreCrashTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
     return true;
