@@ -68,7 +68,7 @@ startup {
     
     foreach (var page in g.MemoryPages(true))
     {
-      if ((page.RegionSize != (UIntPtr)0x2000000) || (page.Type != MemPageType.MEM_MAPPED)) continue;
+      if ((page.RegionSize != (UIntPtr)0x4000000) || (page.Type != MemPageType.MEM_MAPPED)) continue;
       
       gameId = m.ReadString((IntPtr)page.BaseAddress, 6);
       if ( (gameId == null) || (!D.Addr.ContainsKey(gameId)) ) continue;
