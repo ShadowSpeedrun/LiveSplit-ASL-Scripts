@@ -43,7 +43,17 @@ startup {
       { "HUDStatus", 0x57D7E8 },
       { "InCutscene", 0x57D8F9 },
     } },
-    { "GUPE8P", new Dictionary<string, int>() { // Shadow: Reloaded & USA
+    { "GUPR8P", new Dictionary<string, int>() { // Shadow Reloaded
+      { "GameTime", 0x57D908 },
+      { "GameMode", 0x5EC170 },
+      { "StageAction", 0x575F80 },
+      { "StageCompleted", 0x575F95 },
+      { "StageID", 0x57D748 },
+      { "BossHP", 0x5EE65C },
+      { "HUDStatus", 0x57D7E8 },
+      { "InCutscene", 0x57D8F9 },
+    } },
+    { "GUPE8P", new Dictionary<string, int>() { // Shadow USA (unmodified release)
       { "GameTime", 0x57D734 },
       { "GameMode", 0x5EC170 },
       { "StageAction", 0x575F80 },
@@ -52,7 +62,7 @@ startup {
       { "BossHP", 0x5EE65C },
       { "HUDStatus", 0x57D7E8 },
       { "InCutscene", 0x57D8F9 },
-      // "InCutscene" is specific to SX. So we'll need another flag to get this autosplitter working the same as SX.
+      // "InCutscene" is specific to SX variants. So we'll need another flag to get this autosplitter working the same as SX.
       // This memory location should be 0 normally, so shouldnt prevent the autosplitter from working.
     } }
   };
