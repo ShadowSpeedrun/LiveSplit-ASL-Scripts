@@ -157,7 +157,7 @@ init {
   D.BossSplitCondition = false;
 
   D.Debug = (Action<string>)((message) => {
-    message = "[" + current.GameTime + " < " + D.old.GameTime + "] " + message;
+    message = "[" + (double)current.GameTime + " < " + D.old.GameTime + "] " + message;
     if (settings["debug_stdout"]) print("[ShdTH-AS] " + message);
   });
   
@@ -199,14 +199,17 @@ init {
 gameTime {
   var D = vars.D;
 
+  print("[ShdTH-AS] " + "Time: " + (double)current.GameTime);
+
+
   //Only show the additional time when given the ok to start accounting for it.
   if(D.StartTime == 1)
   {
-    return TimeSpan.FromSeconds(D.TotalGameTime + current.GameTime);
+    return TimeSpan.FromMilliseconds(((double)D.TotalGameTime + (double)current.GameTime) * 1000);
   }
   else
   {
-    return TimeSpan.FromSeconds(D.TotalGameTime);
+    return TimeSpan.FromMilliseconds(((double)D.TotalGameTime) * 1000);
   }
 }
 
@@ -301,7 +304,7 @@ split {
   //  If we are going to be spliting, prepare variables for the next split.
   if(willSplit)
   {
-    D.TotalGameTime = D.TotalGameTime + current.GameTime;
+    D.TotalGameTime = (double)D.TotalGameTime + (double)current.GameTime;
     D.StartTime = 0;
     D.HasStageChanged = 0;
     D.BossSplitCondition = false;
@@ -309,7 +312,7 @@ split {
     //  If we are not splitting, add TotalGameTime for...
     //  Restarting a stage in Select Mode (0)
     if (current.GameMode == 0 && current.StageAction == 7 && old.StageAction != 7) {
-      D.TotalGameTime = D.TotalGameTime + current.GameTime;
+      D.TotalGameTime = (double)D.TotalGameTime + (double)current.GameTime;
       D.StartTime = 0;
     }
   
