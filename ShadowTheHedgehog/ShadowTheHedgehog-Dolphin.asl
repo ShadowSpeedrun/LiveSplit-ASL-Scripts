@@ -231,8 +231,15 @@ update {
     current.HUDStatus = 1;
     return false;
   }
-  
-  current.GameTime = D.Read.Float(D.VarAddr("GameTime"));
+
+  // TODO:
+  // save the raw floats in a bucket every stage for every split, adding up
+  // if we are not the final split, perform the same calculation as in-game rounding and return this value in gameTime on split{}
+  // 
+  // if we are on the final split, check the final raw float bucket value matches what our final split should be,
+  //   if it does not, add/subtract from the final split IGT
+
+  current.GameTime = (double)D.Read.Float(D.VarAddr("GameTime"));
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageAction = D.Read.Uint(D.VarAddr("StageAction"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
@@ -321,6 +328,8 @@ split {
     //  First frame of dying in a stage (Non-SX only)
   }
   
+  print("[ShdTH-AS] " + "SPLITCALL GameTime Time: " + (double)current.GameTime);
+  print("[ShdTH-AS] " + "SPLITCALL D Total Time: " + (double)D.TotalGameTime);
   return willSplit; 
 }
 
