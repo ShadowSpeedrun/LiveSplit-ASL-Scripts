@@ -205,11 +205,13 @@ gameTime {
   //Only show the additional time when given the ok to start accounting for it.
   if(D.StartTime == 1)
   {
-    return TimeSpan.FromMilliseconds(((double)D.TotalGameTime + (double)current.GameTime) * 1000);
+    long ticks = (long)(((double)D.TotalGameTime + (double)current.GameTime) * 10000000);
+    return TimeSpan.FromTicks(ticks);
   }
   else
   {
-    return TimeSpan.FromMilliseconds(((double)D.TotalGameTime) * 1000);
+    long ticks = (long)(((double)D.TotalGameTime) * 10000000);
+    return TimeSpan.FromTicks(ticks);
   }
 }
 
