@@ -241,7 +241,7 @@ update {
   // if we are on the final split, check the final raw float bucket value matches what our final split should be,
   //   if it does not, add/subtract from the final split IGT
 
-  current.GameTime = (double)D.Read.Float(D.VarAddr("GameTime"));
+  current.GameTime = (double)D.Read.Float(D.VarAddr("GameTime")) + 0.005;
   current.GameMode = D.Read.Uint(D.VarAddr("GameMode"));
   current.StageAction = D.Read.Uint(D.VarAddr("StageAction"));
   current.StageCompleted = D.Read.Byte(D.VarAddr("StageCompleted"));
